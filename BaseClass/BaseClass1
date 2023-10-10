@@ -1,0 +1,351 @@
+package testCases;
+
+
+import com.aventstack.extentreports.ExtentReports;
+import com.aventstack.extentreports.ExtentTest;
+import com.aventstack.extentreports.MediaEntityBuilder;
+import com.aventstack.extentreports.Status;
+import com.aventstack.extentreports.markuputils.ExtentColor;
+import com.aventstack.extentreports.markuputils.Markup;
+import com.aventstack.extentreports.markuputils.MarkupHelper;
+import com.aventstack.extentreports.reporter.ExtentHtmlReporter;
+import com.aventstack.extentreports.reporter.configuration.Theme;
+import Data.Constants;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.edge.EdgeOptions;
+import org.openqa.selenium.firefox.FirefoxOptions;
+import org.openqa.selenium.remote.DesiredCapabilities;
+import org.openqa.selenium.remote.RemoteWebDriver;
+import pageobject.SimoneChatBotSSOPage;
+import utilities.*;
+import org.apache.commons.io.FileUtils;
+import org.apache.log4j.PropertyConfigurator;
+import org.openqa.selenium.OutputType;
+import org.openqa.selenium.TakesScreenshot;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.edge.EdgeDriver;
+import org.openqa.selenium.firefox.FirefoxDriver;
+import org.openqa.selenium.ie.InternetExplorerDriver;
+import org.testng.ITestResult;
+import org.testng.annotations.*;
+
+import java.io.File;
+import java.io.FileFilter;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.text.SimpleDateFormat;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+public class BaseClass {
+
+    readConfig readconfig = new readConfig();
+    Helper helper = new Helper();
+    public String simoneChatBotURL = readconfig.getApplicationURL();
+    public static WebDriver driver;
+    public ExtentHtmlReporter htmlReporter;
+    public ExtentReports extent;
+    public ExtentTest extentTest;
+    int counter;
+    long currenttime;
+    static String test_type = null;
+
+
+    @BeforeClass
+    public void setUpClass() throws IOException {
+
+        String timeStamp = new SimpleDateFormat("dd MMMM yyyy HH.mm.ss").format(new Date());
+        String data = Arrays.deepToString(simoneTest());
+
+//        int index = this.getClass().getName().indexOf("Simone");
+//        String repName = this.getClass().getName().substring(index) + "_" + timeStamp + ".html";
+        String repName = "Simone ATR_" + timeStamp + ".html";
+
+        htmlReporter = new ExtentHtmlReporter(System.getProperty("user.dir") + "/automation-reports/" + repName);//specify location of the report
+        htmlReporter.loadXMLConfig(System.getProperty("user.dir") + "/extent-config.xml");
+
+        extent = new ExtentReports();
+
+        extent.attachReporter(htmlReporter);
+        extent.setSystemInfo("Host name", "localhost");
+        extent.setSystemInfo("Environemnt", "QA");
+        extent.setSystemInfo("User", "Bayram/Hari");
+
+        htmlReporter.config().setDocumentTitle("SIMONE - Automated Test Results"); // Tile of report
+        htmlReporter.config().setReportName("SIMONE - Automation Report"); // name of the report
+        htmlReporter.config().setTheme(Theme.DARK);
+
+    }
+
+    @BeforeSuite
+    public void setup() throws MalformedURLException {
+
+        String br = readconfig.getBrowserName();
+        String runMode = readconfig.getRunMode();
+        String jenkinsMode = readconfig.getJenkinsMode();
+        test_type = readconfig.getTestingtypeName();
+
+        PropertyConfigurator.configure("log4j.properties");
+
+        if (br.equals("chrome")) {
+            if (jenkinsMode.equalsIgnoreCase("Yes")) {
+                System.setProperty("webdriver.chrome.driver", "./chromedriver.exe");
+                ChromeOptions options = new ChromeOptions();
+                options.addArguments("--disable-gpu");
+                options.setAcceptInsecureCerts(true);
+
+                DesiredCapabilities desiredCapabilities = new DesiredCapabilities();
+                desiredCapabilities.setBrowserName("chrome");
+                desiredCapabilities.setCapability(ChromeOptions.CAPABILITY, options);
+
+                driver = new RemoteWebDriver(new URL("http://localhost:4444/wd/hub"), desiredCapabilities);
+            } else {
+                System.setProperty("webdriver.chrome.driver", readconfig.getChromePath());
+                ChromeOptions options = new ChromeOptions();
+                if (runMode.equalsIgnoreCase("yes")) {
+                    options.addArguments("--headless");
+                }
+                options.addArguments("--remote-allow-origins=*");
+                driver = new ChromeDriver(options);
+            }
+        } else if (br.equals("firefox")) {
+            if (jenkinsMode.equalsIgnoreCase("Yes")) {
+                System.setProperty("webdriver.gecko.driver", "./geckodriver.exe");
+                FirefoxOptions options = new FirefoxOptions();
+                options.addArguments("--disable-gpu");
+                options.setAcceptInsecureCerts(true);
+
+                DesiredCapabilities desiredCapabilities = new DesiredCapabilities();
+                desiredCapabilities.setBrowserName("firefox");
+                desiredCapabilities.setCapability(FirefoxOptions.FIREFOX_OPTIONS, options);
+
+                driver = new RemoteWebDriver(new URL("http://localhost:4444/wd/hub"), desiredCapabilities);
+            } else {
+                System.setProperty("webdriver.gecko.driver", readconfig.getFirefoxPath());
+                FirefoxOptions options = new FirefoxOptions();
+                if (runMode.equalsIgnoreCase("yes")) {
+                    options.setHeadless(true);
+                }
+                driver = new FirefoxDriver(options);
+            }
+        } else if (br.equals("edge")) {
+            if (jenkinsMode.equalsIgnoreCase("Yes")) {
+                System.setProperty("webdriver.edge.driver", "./msedgedriver.exe");
+                EdgeOptions options = new EdgeOptions();
+                //options.setCapability("useAutomationExtension", false);
+
+                DesiredCapabilities desiredCapabilities = new DesiredCapabilities();
+                desiredCapabilities.setBrowserName("MicrosoftEdge");
+                desiredCapabilities.setCapability(EdgeOptions.CAPABILITY, options);
+
+                driver = new RemoteWebDriver(new URL("http://localhost:4444/wd/hub"), desiredCapabilities);
+            } else {
+                System.setProperty("webdriver.edge.driver", readconfig.getedgePath());
+                EdgeOptions edgeOptions = new EdgeOptions();
+                if (runMode.equalsIgnoreCase("yes")) {
+                    edgeOptions.addArguments("--headless");
+                }
+                edgeOptions.addArguments("--remote-allow-origins=*");
+                driver = new EdgeDriver(edgeOptions);
+            }
+
+        } else if (br.equals("IE")) {
+            System.setProperty("webdriver.ie.driver", readconfig.getIEPath());
+            driver = new InternetExplorerDriver();
+        }
+        currenttime = System.currentTimeMillis() / 1000;
+
+        //    test_type = type;
+        driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(10));
+        driver.manage().window().maximize();
+
+        if (jenkinsMode.equalsIgnoreCase("Yes")) {
+            signInWithCredentials();
+        } else {
+            ssoLogin();
+        }
+
+
+    }
+
+//    @AfterMethod
+//    public void teardown() {
+//        System.out.println("Log for Teardown");
+//        driver.quit();
+//        //   extent.flush();
+//    }
+
+
+    @AfterClass
+    public void endReport() {
+        extent.flush();
+    }
+
+    @AfterSuite
+    public void sendEmail() {
+        File directoryPath = new File(System.getProperty("user.dir") + "/automation-reports/");
+        File directoryPath2 = new File(System.getProperty("user.dir") + "/automation-reports/Screenshots/");
+        FileFilter fileFilter = dir -> {
+            if (dir.isFile()) {
+                return true;
+            } else {
+                return false;
+            }
+        };
+        //List of all files and directories
+        File filesList[] = directoryPath.listFiles(fileFilter);
+        File filesList2[] = directoryPath2.listFiles();
+
+        List<String> list = new ArrayList<>();
+
+        for (int i = 0; i < filesList.length; i++) {
+            if (helper.isNewCreated(filesList[i].toString(), currenttime)) {
+                list.add(filesList[i].getAbsolutePath());
+                System.out.println(filesList[i].getAbsolutePath());
+            }
+        }
+        for (int i = 0; i < (filesList2.length); i++) {
+            if (filesList2[i].getAbsolutePath().contains("Failed")) {
+                if (helper.isNewCreated(filesList2[i].toString(), currenttime)) {
+                    list.add(filesList2[i].getAbsolutePath());
+                    System.out.println(filesList2[i].getAbsolutePath());
+                }
+            }
+        }
+
+
+        String attachment[] = new String[list.size()];
+        for (int i = 0; i < list.size(); i++) {
+            attachment[i] = list.get(i);
+        }
+
+        EmailUtil.sendEmail(attachment);
+        driver.quit();
+    }
+
+
+    public String captureScreen(WebDriver driver, String tname) throws IOException {
+        String time = new SimpleDateFormat("dd MMMM yyyy HH.mm").format(new Date());
+        TakesScreenshot ts = (TakesScreenshot) driver;
+        File source = ts.getScreenshotAs(OutputType.FILE);
+        File target = new File(System.getProperty("user.dir") + "/automation-reports/Screenshots/" + tname + "-" + time + ".png");
+
+        target.delete();
+        FileUtils.copyFile(source, target);
+        System.out.println("Screenshot taken");
+        String filePath = "./Screenshots/" + target.getName();
+        System.out.println("File path is : " + filePath);
+        return filePath;
+    }
+
+    public void addScreenshotToReport(ExtentTest logger, String fileName) throws IOException {
+//        logger.info("Screenshot for " + fileName).addScreenCaptureFromPath(captureScreen(driver, fileName));
+        logger.pass("<b><font color=green>Screenshot of " + fileName + "</font></b><br>", MediaEntityBuilder.createScreenCaptureFromPath(captureScreen(driver, fileName)).build());
+
+    }
+
+    public void ssoLogin() {
+
+        driver.get(simoneChatBotURL);
+
+        SimoneChatBotSSOPage simoneChatBotSSOPage = new SimoneChatBotSSOPage(driver);
+        //Sign in through SSO
+        simoneChatBotSSOPage.ssoSignIn();
+
+        Helper helper = new Helper();
+
+        helper.isElementVisible(driver, "//*[@id=\"simone-logo\"]", Constants.WAIT_TIME);
+
+    }
+
+    public void signInWithCredentials() {
+        driver.get(simoneChatBotURL);
+        SimoneChatBotSSOPage simoneChatBotSSOPage = new SimoneChatBotSSOPage(driver);
+        simoneChatBotSSOPage.signInWithCredentials();
+        Helper helper = new Helper();
+        helper.isElementVisible(driver, "//*[@id=\"simone-logo\"]", Constants.WAIT_TIME);
+
+    }
+
+
+    @AfterMethod
+    public void tearDown(ITestResult result) throws IOException {
+        String data = Arrays.deepToString(simoneTest()[counter]);
+        String functionality = helper.getDataArray(data)[0].replaceAll("\\<", "-").replaceAll("\\>", "-");
+        String value = helper.getData(data);
+
+
+        if (result.getStatus() == ITestResult.FAILURE) {
+
+            extentTest.log(Status.FAIL, MarkupHelper.createLabel(result.getName() + " Test case FAILED due to below issues:", ExtentColor.RED));
+            String failure = String.valueOf(result.getThrowable());
+            extentTest.log(Status.INFO, helper.applyCodeBlockStyle(failure));
+
+            String exceptionMessage = Arrays.toString(result.getThrowable().getStackTrace());
+            extentTest.fail("<details>" + "<summary>" + "<b>" + "<font color=" + "red>" + "Exception Occured:Click to see"
+                    + "</font>" + "</b >" + "</summary>" + exceptionMessage.replaceAll(",", "<br>") + "</details>" + " \n");
+
+            String fname = "Failed_ScreenShot_" + functionality + "_" + value;
+
+            try {
+                extentTest.fail("<b><font color=red>Screenshot of failure</font></b><br>", MediaEntityBuilder.createScreenCaptureFromPath(captureScreen(driver, fname)).build());
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+
+
+            String methodName = result.getMethod().getMethodName();
+            String className = result.getMethod().getRealClass().getName();
+            String text = "<b>TEST CASE: - " + className.toUpperCase() + "-" + methodName.toUpperCase() + " FAILED</b>";
+
+            Markup m = MarkupHelper.createLabel(text, ExtentColor.RED);
+
+            extentTest.log(Status.FAIL, m);
+
+        } else if (result.getStatus() == ITestResult.SUCCESS) {
+
+            String fname = "Passed_ScreenShot_" + functionality + "_" + value;
+            try {
+                extentTest.pass("<b><font color=green>Screenshot of success</font></b><br>", MediaEntityBuilder.createScreenCaptureFromPath(captureScreen(driver, fname)).build());
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+
+            String methodName = result.getMethod().getMethodName();
+            String className = result.getMethod().getRealClass().getName();
+            String text = "<b>TEST CASE: - " + className.toUpperCase() + "-" + methodName.toUpperCase() + " PASS</b>";
+
+            Markup m = MarkupHelper.createLabel(text, ExtentColor.GREEN);
+
+
+            extentTest.log(Status.PASS, m);
+        }
+        counter++;
+
+    }
+
+    public void sleep(int sec) {
+        try {
+            Thread.sleep(sec * 1000);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
+    @DataProvider(name = "dp1")
+    public static Object[][] simoneTest() throws IOException {
+
+        return ExcelUtility.excelIntoArray("Configuration" + File.separator + "InputValues.xlsx", test_type);
+    }
+
+}
