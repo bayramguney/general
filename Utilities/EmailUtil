@@ -1,0 +1,68 @@
+package utilities;
+
+
+import Data.Constants;
+
+import javax.mail.*;
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeBodyPart;
+import javax.mail.internet.MimeMessage;
+import javax.mail.internet.MimeMultipart;
+import java.io.IOException;
+import java.text.Format;
+import java.text.MessageFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Properties;
+
+public class EmailUtil {
+
+    public static void sendEmail(String[] attachFiles) {
+
+        try {
+
+            Properties properties = System.getProperties();
+            properties.setProperty("mail.smtp.host", Constants.SMTP_HOST);
+
+            Session session = Session.getInstance(properties);
+            MimeMessage message = new MimeMessage(session);
+            message.setFrom(new InternetAddress(Constants.EMAIL_FROM));
+            message.addRecipients(Message.RecipientType.TO, InternetAddress.parse(Constants.EMAIL_TO));
+
+            Format dateFormat = new SimpleDateFormat("dd MMMM yyyy HH:mm:ss z");
+            message.setSubject(MessageFormat.format(Constants.SUBJECT, dateFormat.format(new Date())));
+
+            Multipart multipart = new MimeMultipart();
+
+            BodyPart messageBodyPart = new MimeBodyPart();
+            messageBodyPart.setText(MessageFormat.format(Constants.MESSAGE_BODY, dateFormat.format(new Date())));
+
+            multipart.addBodyPart(messageBodyPart);
+
+            if (attachFiles != null && attachFiles.length > 0) {
+                for (String filePath : attachFiles) {
+                    System.out.println(filePath);
+                    MimeBodyPart attachPart = new MimeBodyPart();
+
+                    try {
+                        attachPart.attachFile(filePath);
+                    } catch (IOException ex) {
+                        ex.printStackTrace();
+                    }
+
+                    multipart.addBodyPart(attachPart);
+                }
+            }
+
+            message.setContent(multipart);
+            Transport.send(message);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+    }
+
+}
+
+
